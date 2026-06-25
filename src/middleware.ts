@@ -8,13 +8,23 @@ const SESSION_COOKIE_NAME = 'wacrm_session'
  * Postgres driver isn't available, so we delegate the DB lookup to a
  * Node route handler and forward the cookie. Returns true when the
  * cookie maps to a live session.
+ *
+ * The lookup MUST go to an internal loopback address, not the public
+ * origin: on container platforms like Railway a fetch to the app's own
+ * public hostname can't hairpin back to the same instance, so it fails
+ * fast and every request would look unauthenticated. When PORT is set
+ * (production / `next start`) we call 127.0.0.1:$PORT directly; locally
+ * (`next dev`, no PORT) we fall back to the request origin.
  */
 async function isAuthenticated(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return false
 
+  const port = process.env.PORT
+  const base = port ? `http://127.0.0.1:${port}` : request.nextUrl.origin
+
   try {
-    const res = await fetch(new URL('/api/auth/me', request.url), {
+    const res = await fetch(new URL('/api/auth/me', base), {
       headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` },
       // Don't cache — session state changes per request.
       cache: 'no-store',
