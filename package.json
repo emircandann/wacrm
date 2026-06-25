@@ -36,7 +36,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:setup": "node scripts/setup-db.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",
