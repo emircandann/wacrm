@@ -371,6 +371,15 @@ export async function POST(request: Request) {
     const connectedAt = registrationError ? null : new Date()
     const finalRegisteredAt = registrationError ? null : registeredAt
 
+    // Raw `sql` execute calls carry no column-type context, so Drizzle /
+    // postgres.js can't infer these are timestamps — passing a JS Date then
+    // throws "argument must be a string/Buffer, received Date". Serialize to
+    // ISO strings, which timestamptz columns accept directly. (Typed Drizzle
+    // inserts elsewhere don't need this; they know the column type.)
+    const connectedAtIso = connectedAt ? connectedAt.toISOString() : null
+    const registeredAtIso = finalRegisteredAt ? finalRegisteredAt.toISOString() : null
+    const subscribedAppsAtIso = subscribedAppsAt ? subscribedAppsAt.toISOString() : null
+
     if (existing) {
       try {
         await db.execute(sql`
@@ -380,9 +389,9 @@ export async function POST(request: Request) {
               access_token = ${encryptedAccessToken},
               verify_token = ${encryptedVerifyToken},
               status = ${status},
-              connected_at = ${connectedAt},
-              registered_at = ${finalRegisteredAt},
-              subscribed_apps_at = ${subscribedAppsAt},
+              connected_at = ${connectedAtIso},
+              registered_at = ${registeredAtIso},
+              subscribed_apps_at = ${subscribedAppsAtIso},
               last_registration_error = ${registrationError},
               updated_at = NOW()
           WHERE account_id = ${accountId}
@@ -422,9 +431,9 @@ export async function POST(request: Request) {
             ${encryptedAccessToken},
             ${encryptedVerifyToken},
             ${status},
-            ${connectedAt},
-            ${finalRegisteredAt},
-            ${subscribedAppsAt},
+            ${connectedAtIso},
+            ${registeredAtIso},
+            ${subscribedAppsAtIso},
             ${registrationError},
             NOW()
           )
